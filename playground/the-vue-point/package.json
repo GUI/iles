@@ -9,12 +9,13 @@
   },
   "devDependencies": {
     "@iconify-json/carbon": "^1.0.7",
-    "@mapbox/rehype-prism": "^0.8.0",
     "@islands/icons": "workspace:*",
+    "@mapbox/rehype-prism": "^0.8.0",
     "feed": "^4.2.1",
     "iles": "workspace:*",
     "unplugin-icons": "^0.12.15",
     "vite": "^2.6.13",
+    "vite-imagetools": "^4.0.1",
     "vite-plugin-windicss": "^1.5.1"
   }
 }

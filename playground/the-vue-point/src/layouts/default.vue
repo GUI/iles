@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useHead, provideMDXComponents } from 'iles'
 
+import Image from '~/components/Image.vue'
+
 if (import.meta.env.PROD) {
   useHead({
     script: [
@@ -10,6 +12,7 @@ if (import.meta.env.PROD) {
 }
 
 provideMDXComponents({
+  img: Image,
   strong: 'b',
 })
 </script>
