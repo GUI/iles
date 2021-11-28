@@ -44,6 +44,7 @@
   "dependencies": {
     "@islands/frontmatter": "workspace:^0.3.0",
     "@islands/hydration": "workspace:^0.3.0",
+    "@islands/images": "workspace:^0.1.0",
     "@islands/mdx": "workspace:^0.3.0",
     "@islands/prerender": "workspace:^0.3.0",
     "@nuxt/devalue": "^2.0.0",

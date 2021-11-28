@@ -7,4 +7,5 @@ packages:
   - packages/mdx/
   - packages/icons/
   - packages/iles/
+  - packages/images/
   - playground/the-vue-point/

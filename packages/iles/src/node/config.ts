@@ -8,7 +8,8 @@ import pages from 'vite-plugin-pages'
 import vue from '@vitejs/plugin-vue'
 import components from 'unplugin-vue-components/vite'
 import frontmatter from '@islands/frontmatter'
-import vueMdx from '@islands/mdx'
+import mdx from '@islands/mdx'
+import images from '@islands/images'
 
 import type { ComponentResolver } from 'unplugin-vue-components/types'
 import type { Frontmatter } from '@islands/frontmatter'
@@ -62,7 +63,8 @@ async function resolveUserConfig (root: string, configEnv: ConfigEnv) {
   config.modules = compact<IlesModule>(await resolveIlesModules([
     { name: 'iles:base-config', ...appConfigDefaults(config, userConfig as UserConfig) },
     frontmatter(),
-    vueMdx(),
+    mdx(),
+    images(),
     { name: 'user-config', ...userConfig },
     ...modules,
   ]).then(modules => modules.flat()))
