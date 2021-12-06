@@ -178,7 +178,7 @@ import.meta.hot.accept('/${relative(root, path)}', (...args) => __ILES_PAGE_UPDA
     {
       name: 'iles:sfc:page-data',
       enforce: 'post',
-      async transform (code, id) {
+      async transform (code, id, { ssr } = {}) {
         const { path, query } = parseId(id)
         const isMarkdownPath = isMarkdown(path)
         const isSFC = isSFCMain(path, query)
@@ -209,9 +209,16 @@ import.meta.hot.accept('/${relative(root, path)}', (...args) => __ILES_PAGE_UPDA
           }
           const layoutName = pageMatter.layout ?? 'default'
           appendToSfc('layoutName', serialize(layoutName))
-          appendToSfc('layoutFn', String(layoutName) === 'false'
-            ? 'false'
-            : `() => import('${layoutsRoot}/${layoutName}.vue').then(m => m.default)`)
+
+          if (String(layoutName) === 'false') {
+            appendToSfc('layoutFn', 'false')
+          } else {
+            const layoutPath = `'${layoutsRoot}/${layoutName}.vue'`
+            if (ssr) s.append(`;import __layoutFn from ${layoutPath};`)
+            appendToSfc('layoutFn', ssr
+              ? '() => __layoutFn'
+              : `() => import(${layoutPath}).then(m => m.default)`)
+          }
         }
 
         return s.toString()

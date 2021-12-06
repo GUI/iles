@@ -3,7 +3,7 @@ import { promises as fs } from 'fs'
 import type { RollupOutput } from 'rollup'
 import type { Plugin } from 'vite'
 import glob from 'fast-glob'
-import { relative, dirname, resolve } from 'pathe'
+import { extname, relative, dirname, resolve } from 'pathe'
 import { build, mergeConfig as mergeViteConfig, UserConfig as ViteUserConfig } from 'vite'
 import { APP_PATH } from '../alias'
 import { AppConfig } from '../shared'
@@ -16,29 +16,28 @@ type Entrypoints = Record<string, string>
 //
 // Multi-entry build: every page is considered an entry chunk.
 export async function bundle (config: AppConfig) {
-  const entrypoints = resolveEntrypoints(config)
-
-  const [clientResult, serverResult] = await Promise.all([
-    bundleWithVite(config, entrypoints, { ssr: false }),
-    bundleWithVite(config, entrypoints, { ssr: true }),
-    bundleHtmlEntrypoints(config),
+  const [clientResult, serverResult,] = await Promise.all([
+    bundleClient(config),
+    bundleSSR(config),
   ])
 
   return { clientResult, serverResult }
 }
 
-async function bundleHtmlEntrypoints (config: AppConfig) {
-  const entrypoints = glob.sync(resolve(config.pagesDir, './**/*.html'),
-    { cwd: config.root, ignore: ['node_modules/**'] })
+async function bundleClient (config: AppConfig) {
+  const entrypoints = glob.sync(resolve(config.pagesDir, './**/*'), { cwd: config.root })
 
-  if (entrypoints.length > 0)
-    await bundleWithVite(config, entrypoints, { htmlBuild: true, ssr: false })
+  return await bundleWithVite(config, entrypoints, { ssr: false })
+}
+
+async function bundleSSR (config: AppConfig) {
+  return await bundleWithVite(config, { app: APP_PATH }, { ssr: true })
 }
 
 // Internal: Creates a client and server bundle.
 // NOTE: The client bundle is used only to obtain styles, JS is discarded.
-async function bundleWithVite (config: AppConfig, entrypoints: string[] | Entrypoints, options: { ssr: boolean, htmlBuild?: boolean }) {
-  const { htmlBuild = false, ssr } = options
+async function bundleWithVite (config: AppConfig, entrypoints: string[] | Entrypoints, options: { ssr: boolean }) {
+  const { ssr } = options
 
   return await build(mergeViteConfig(config.vite, {
     logLevel: 'warn',
@@ -48,55 +47,79 @@ async function bundleWithVite (config: AppConfig, entrypoints: string[] | Entryp
     },
     plugins: [
       IslandsPlugins(config),
-      htmlBuild
-        ? moveHtmlPagesPlugin(config)
-        : !ssr && removeJsPlugin(),
+      !ssr && [
+        appImportsPlugin(config),
+        moveHtmlPagesPlugin(config, entrypoints as string[]),
+      ],
     ],
     build: {
       ssr,
-      cssCodeSplit: htmlBuild,
+      cssCodeSplit: !ssr,
+      manifest: !ssr,
       minify: ssr ? false : 'esbuild',
       emptyOutDir: ssr,
       outDir: ssr ? config.tempDir : config.outDir,
       rollupOptions: {
         input: entrypoints,
-        preserveEntrySignatures: htmlBuild ? undefined : 'allow-extension',
-        treeshake: htmlBuild,
+        preserveEntrySignatures: 'allow-extension',
+        treeshake: !ssr,
       },
     },
   } as ViteUserConfig)) as RollupOutput
 }
 
-// Internal: Currently SSG supports a single stylesheet for all pages.
-function resolveEntrypoints (config: AppConfig): Entrypoints {
-  return { app: APP_PATH }
-}
-
-// Internal: Removes any client JS files from the bundle, islands will be used
-// instead, which are bundled in a separate build.
-function removeJsPlugin (): Plugin {
+// Internal: Because the client build does not import the iles app, this plugin
+// injects imports to the app and site, ensuring any styles imported are kept.
+function appImportsPlugin (config: AppConfig): Plugin {
+  const { pagesDir } = config
   return {
-    name: 'iles:client-js-removal',
+    name: 'iles:client-app-imports',
+    transform (code, id) {
+      if (!id.includes(pagesDir)) return
+
+      const ext = extname(id).slice(1) || ''
+      if (!config.pages.extensions!.some(extension => extension === ext)) return
+
+      return `import '@islands/user-app';import '@islands/user-site';${code}`
+    },
+    // Internal: user-app.css, user-site.css => site.css
     generateBundle (_, bundle) {
-      for (const name in bundle)
-        if (bundle[name].fileName.endsWith('.js')) delete bundle[name]
+      const outDir = resolve(config.root, config.outDir)
+      for (const name in bundle) {
+        const chunk = bundle[name]
+
+        if (chunk.type === 'chunk') {
+          const { code, ...other } = chunk
+          fs.mkdir(resolve(outDir, 'chunks'), { recursive: true })
+            .then(() => fs.writeFile(resolve(outDir, 'chunks', `${chunk.name}.json`), JSON.stringify(other, null, 2), 'utf-8'))
+        }
+
+        if (chunk.type === 'asset' && chunk.fileName.includes('/user-'))
+          chunk.fileName = chunk.fileName.replace(/user-(?:app|site)/, 'site')
+      }
     },
   }
 }
 
 // Internal: Moves any HTML entrypoints to the correct location in the output dir.
-function moveHtmlPagesPlugin (config: AppConfig): Plugin {
+function moveHtmlPagesPlugin (config: AppConfig, entrypoints: string[]): Plugin {
+  const htmlFiles = new Set(
+    entrypoints.filter(file => file.endsWith('.html'))
+      .map(file => relative(config.root, file)))
+
   return {
     name: 'iles:html-pages',
     async writeBundle (options, bundle) {
       const outDir = resolve(config.root, config.outDir)
-      await Promise.all(Object.entries(bundle).map(async ([name, chunk]) => {
-        if (name.endsWith('.html')) {
+      const movePromises = []
+      for (const name in bundle) {
+        if (htmlFiles.has(name)) {
           const dest = resolve(outDir, relative(config.pagesDir, resolve(config.root, name)))
-          await fs.mkdir(dirname(dest), { recursive: true })
-          await fs.rename(resolve(outDir, name), dest)
+          movePromises.push(fs.mkdir(dirname(dest), { recursive: true })
+            .then(() => fs.rename(resolve(outDir, name), dest)))
         }
-      }))
+      }
+      await Promise.all(movePromises)
       rm(resolve(outDir, relative(config.root, config.srcDir)))
     },
   }
