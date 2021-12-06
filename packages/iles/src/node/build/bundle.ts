@@ -182,9 +182,9 @@ function clientPlugins (config: AppConfig, entrypoints: Entrypoints, cssByFile: 
 
 function extractStylesheets (chunk: OutputAsset) {
   const html = chunk.source as string
-  const matches = html.matchAll(/<link\b.*?\bhref="(.*?\.css)"[^>]*?>/g)
-  console.log({ html, matches })
-  return uniq(Array.from(matches).map(([, href]) => href))
+  const matches = Array.from(html.matchAll(/<link\b.*?\bhref="(.*?\.css)"[^>]*?>/g))
+  console.log({ html, css: matches.map(([, href]) => href) })
+  return uniq(matches.map(([, href]) => href))
 }
 
 function extractScripts (chunk: OutputAsset, base: string) {

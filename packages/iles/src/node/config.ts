@@ -285,7 +285,6 @@ function viteConfigDefaults (root: string): ViteOptions {
     },
     build: {
       brotliSize: false,
-      cssCodeSplit: false,
     },
     optimizeDeps: {
       include: [
