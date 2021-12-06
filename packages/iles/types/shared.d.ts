@@ -82,6 +82,7 @@ export interface StaticPath<T = Record<string, any>> {
 export interface RouteToRender {
   path: string
   ssrProps: StaticPath['props']
+  sourceFilename: string
   outputFilename: string
   rendered: string
 }
@@ -268,5 +269,7 @@ export interface IslandDefinition {
 }
 
 export type IslandsByPath = Record<string, IslandDefinition[]>
+
+export type CssFiles = Record<string, string[]>
 
 export type Awaited<T> = T extends PromiseLike<infer U> ? Awaited<U> : T

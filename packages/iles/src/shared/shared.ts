@@ -9,6 +9,7 @@ export type {
   HeadConfig,
   IslandDefinition,
   OnLoadFn,
+  CssFiles,
   IslandsByPath,
   LayoutFactory,
   NamedPlugins,

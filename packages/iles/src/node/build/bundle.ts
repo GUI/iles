@@ -1,14 +1,14 @@
 /* eslint-disable no-restricted-syntax */
 import { promises as fs } from 'fs'
-import type { RollupOutput } from 'rollup'
+import type { OutputAsset, OutputChunk, OutputOptions, PreRenderedAsset, PreRenderedChunk, RollupOutput } from 'rollup'
 import type { Plugin } from 'vite'
 import glob from 'fast-glob'
-import { extname, relative, dirname, resolve } from 'pathe'
+import { basename, relative, dirname, resolve } from 'pathe'
 import { build, mergeConfig as mergeViteConfig, UserConfig as ViteUserConfig } from 'vite'
 import { APP_PATH } from '../alias'
-import { AppConfig } from '../shared'
+import { AppConfig, CssFiles } from '../shared'
 import IslandsPlugins from '../plugin/plugin'
-import { rm } from './utils'
+import { uniq, rm } from './utils'
 
 type Entrypoints = Record<string, string>
 
@@ -16,18 +16,41 @@ type Entrypoints = Record<string, string>
 //
 // Multi-entry build: every page is considered an entry chunk.
 export async function bundle (config: AppConfig) {
+  const cssByFile: CssFiles = {}
+
   const [clientResult, serverResult,] = await Promise.all([
-    bundleClient(config),
+    bundleClient(config, cssByFile),
     bundleSSR(config),
   ])
 
-  return { clientResult, serverResult }
+  return { clientResult: { ...clientResult, cssByFile }, serverResult }
 }
 
-async function bundleClient (config: AppConfig) {
-  const entrypoints = glob.sync(resolve(config.pagesDir, './**/*'), { cwd: config.root })
+async function bundleClient (config: AppConfig, cssByFile: CssFiles) {
+  const { root, assetsDir } = config
+  const files = glob.sync(resolve(config.pagesDir, './**/*'), { cwd: root })
+    .map(file => relative(root, file))
 
-  return await bundleWithVite(config, entrypoints, { ssr: false })
+  // NOTE: In order to extract CSS files used in a page, a virtual HTML entry is
+  // added per page, allowing the Vite html plugin to inject links to the
+  // stylesheets which are extracted using a regex.
+  const entrypoints = Object.fromEntries(
+    files.map(file => [file, file.replace(/\.\w+$/, '.html')]))
+
+  function assetFileNames (asset: PreRenderedAsset | PreRenderedChunk) {
+    const name = asset.name?.replace(/(?:user\-(?:app|site))|(?:jsx\-runtime)/, 'site') || 'name'
+    return `${assetsDir}/${basename(name).replace(/[^\w\.]/g, '').split('.', 2)[0]}.[hash].[ext]`
+  }
+
+  function chunkFileNames (chunk: PreRenderedChunk) {
+    return assetFileNames(chunk).replace('[ext]', 'js')
+  }
+
+  return await bundleWithVite(config, entrypoints, {
+    ssr: false,
+    cssByFile,
+    output: { assetFileNames, chunkFileNames, entryFileNames: chunkFileNames },
+  })
 }
 
 async function bundleSSR (config: AppConfig) {
@@ -36,8 +59,8 @@ async function bundleSSR (config: AppConfig) {
 
 // Internal: Creates a client and server bundle.
 // NOTE: The client bundle is used only to obtain styles, JS is discarded.
-async function bundleWithVite (config: AppConfig, entrypoints: string[] | Entrypoints, options: { ssr: boolean }) {
-  const { ssr } = options
+async function bundleWithVite (config: AppConfig, entrypoints: Entrypoints, options: { ssr: boolean, cssByFile?: CssFiles, output?: OutputOptions }) {
+  const { ssr, cssByFile, output } = options
 
   return await build(mergeViteConfig(config.vite, {
     logLevel: 'warn',
@@ -47,20 +70,17 @@ async function bundleWithVite (config: AppConfig, entrypoints: string[] | Entryp
     },
     plugins: [
       IslandsPlugins(config),
-      !ssr && [
-        appImportsPlugin(config),
-        moveHtmlPagesPlugin(config, entrypoints as string[]),
-      ],
+      !ssr && clientPlugins(config, entrypoints, cssByFile!),
     ],
     build: {
       ssr,
       cssCodeSplit: !ssr,
-      manifest: !ssr,
       minify: ssr ? false : 'esbuild',
       emptyOutDir: ssr,
       outDir: ssr ? config.tempDir : config.outDir,
       rollupOptions: {
         input: entrypoints,
+        output: { ...output, ...config.vite.build?.rollupOptions?.output },
         preserveEntrySignatures: 'allow-extension',
         treeshake: !ssr,
       },
@@ -68,59 +88,107 @@ async function bundleWithVite (config: AppConfig, entrypoints: string[] | Entryp
   } as ViteUserConfig)) as RollupOutput
 }
 
-// Internal: Because the client build does not import the iles app, this plugin
-// injects imports to the app and site, ensuring any styles imported are kept.
-function appImportsPlugin (config: AppConfig): Plugin {
-  const { pagesDir } = config
-  return {
-    name: 'iles:client-app-imports',
-    transform (code, id) {
-      if (!id.includes(pagesDir)) return
+// NOTE: Would be a lot simpler if Vite exposed `chunkToEmittedCssFileMap`.
+function clientPlugins (config: AppConfig, entrypoints: Entrypoints, cssByFile: CssFiles): Plugin[] {
+  const { root } = config
 
-      const ext = extname(id).slice(1) || ''
-      if (!config.pages.extensions!.some(extension => extension === ext)) return
+  const pagesByHtmlEntrypoint = Object.fromEntries(Object.entries(entrypoints)
+    .filter(([file, htmlFile]) => !file.endsWith('.html'))
+    .map(entry => entry.reverse()))
 
-      return `import '@islands/user-app';import '@islands/user-site';${code}`
-    },
-    // Internal: user-app.css, user-site.css => site.css
-    generateBundle (_, bundle) {
-      const outDir = resolve(config.root, config.outDir)
-      for (const name in bundle) {
-        const chunk = bundle[name]
-
-        if (chunk.type === 'chunk') {
-          const { code, ...other } = chunk
-          fs.mkdir(resolve(outDir, 'chunks'), { recursive: true })
-            .then(() => fs.writeFile(resolve(outDir, 'chunks', `${chunk.name}.json`), JSON.stringify(other, null, 2), 'utf-8'))
-        }
-
-        if (chunk.type === 'asset' && chunk.fileName.includes('/user-'))
-          chunk.fileName = chunk.fileName.replace(/user-(?:app|site)/, 'site')
-      }
-    },
-  }
-}
-
-// Internal: Moves any HTML entrypoints to the correct location in the output dir.
-function moveHtmlPagesPlugin (config: AppConfig, entrypoints: string[]): Plugin {
   const htmlFiles = new Set(
-    entrypoints.filter(file => file.endsWith('.html'))
+    Object.keys(entrypoints).filter(file => file.endsWith('.html'))
       .map(file => relative(config.root, file)))
 
-  return {
-    name: 'iles:html-pages',
-    async writeBundle (options, bundle) {
-      const outDir = resolve(config.root, config.outDir)
-      const movePromises = []
-      for (const name in bundle) {
-        if (htmlFiles.has(name)) {
-          const dest = resolve(outDir, relative(config.pagesDir, resolve(config.root, name)))
-          movePromises.push(fs.mkdir(dirname(dest), { recursive: true })
-            .then(() => fs.rename(resolve(outDir, name), dest)))
-        }
+  const trackUsedJsFiles = htmlFiles.size > 0
+
+  return [
+    {
+      name: 'iles:build:virtual-entrypoints',
+      resolveId (id) {
+        if (pagesByHtmlEntrypoint[relative(root, id)])
+          return id
+      },
+      // NOTE: Returns a fake HTML file that references the actual entrypoint.
+      load (id) {
+        const pageFilename = pagesByHtmlEntrypoint[relative(root, id)]
+        if (pageFilename)
+          return `<script type="module" src="/${pageFilename}"></script>`
       }
-      await Promise.all(movePromises)
-      rm(resolve(outDir, relative(config.root, config.srcDir)))
     },
-  }
+    {
+      name: 'iles:build:client-imports',
+      enforce: 'post',
+      // NOTE: Ensures styles imported in app.ts are detected as dependencies.
+      transform (code, id) {
+        if (entrypoints[relative(root, id)] && !id.endsWith('.html'))
+          return `import '@islands/user-app';import '@islands/user-site';${code}`
+      },
+    },
+    {
+      name: 'iles:build:extract-assets',
+      enforce: 'post',
+      generateBundle (_options, bundle) {
+        const usedJsFileNames = new Set()
+
+        function trackUsedJs (file: string) {
+          if (usedJsFileNames.has(file)) return
+          usedJsFileNames.add(file)
+          const usedChunk = bundle[file] as OutputChunk & { imports?: string[] }
+          usedChunk.imports?.forEach(trackUsedJs)
+        }
+
+        for (const name in bundle) {
+          const chunk = bundle[name]
+          if (chunk.type !== 'asset') continue
+
+          // NOTE: Extracts the injected stylesheet links from the fake HTML file.
+          const entryFile = pagesByHtmlEntrypoint[chunk.fileName]
+          if (entryFile)
+            cssByFile[entryFile] = extractStylesheets(chunk)
+          else if (trackUsedJsFiles && chunk.fileName.endsWith('.html'))
+            extractScripts(chunk, config.base).forEach(trackUsedJs)
+        }
+
+        for (const name in bundle) {
+          const chunk = bundle[name]
+
+          if (chunk.type === 'chunk' && (!trackUsedJsFiles || !usedJsFileNames.has(chunk.fileName)))
+            delete bundle[name]
+        }
+      },
+    },
+    {
+      name: 'iles:build:move-html-pages',
+      enforce: 'post',
+      // NOTE: Moves any raw .html pages to their correct location in outDir.
+      // /dist/src/pages/examples/simple.html => /dist/examples/simple.html
+      async writeBundle (_options, bundle) {
+        const outDir = resolve(config.root, config.outDir)
+        const movePromises = []
+        for (const name in bundle) {
+          if (htmlFiles.has(name)) {
+            const dest = resolve(outDir, relative(config.pagesDir, resolve(config.root, name)))
+            movePromises.push(fs.mkdir(dirname(dest), { recursive: true })
+              .then(() => fs.rename(resolve(outDir, name), dest)))
+          }
+        }
+        await Promise.all(movePromises)
+        rm(resolve(outDir, relative(config.root, config.srcDir)))
+      },
+    }
+  ]
+}
+
+function extractStylesheets (chunk: OutputAsset) {
+  const html = chunk.source as string
+  const matches = html.matchAll(/<link\b.*?\bhref="(.*?\.css)"[^>]*?>/g)
+  console.log({ html, matches })
+  return uniq(Array.from(matches).map(([, href]) => href))
+}
+
+function extractScripts (chunk: OutputAsset, base: string) {
+  const html = chunk.source as string
+  const matches = html.matchAll(/<(?:script|link)\b.*?\b(?:src|href)="(.*?\.js)"[^>]*?>/g)
+  return uniq(Array.from(matches).map(([, src]) => src.replace(base, '')))
 }

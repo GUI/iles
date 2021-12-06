@@ -13,6 +13,7 @@ const posts = getPosts()
     <div class="pt-6 pb-8 space-y-2 md:space-y-5">
       <h1
         class="
+          title
           text-3xl
           leading-9
           font-extrabold
@@ -49,3 +50,9 @@ const posts = getPosts()
     </ul>
   </div>
 </template>
+
+<style scoped lang="postcss">
+.title {
+  color: red;
+}
+</style>

@@ -10,10 +10,10 @@ export async function getRoutesToRender (config: AppConfig, createApp: CreateApp
   const routesToRender = new Map<string, RouteToRender>()
   const { router } = await createApp()
 
-  for (const { path, ssrProps } of await resolveRoutesToRender(router)) {
+  for (const { path, sourceFilename, ssrProps } of await resolveRoutesToRender(router)) {
     const extension = extname(path).slice(1) || '.html'
     const outputFilename = pathToFilename(path, extension)
-    routesToRender.set(path, { path, ssrProps, outputFilename, rendered: '' })
+    routesToRender.set(path, { path, ssrProps, sourceFilename, outputFilename, rendered: '' })
   }
 
   return Array.from(routesToRender.values())
@@ -22,7 +22,11 @@ export async function getRoutesToRender (config: AppConfig, createApp: CreateApp
 async function resolveRoutesToRender (router: Router) {
   const toResolvedPath = (route: any) => {
     try {
-      return { path: router.resolve(route).fullPath, ssrProps: route.ssrProps }
+      return {
+        path: router.resolve(route).fullPath,
+        ssrProps: route.ssrProps,
+        sourceFilename: route.meta?.filename || String(route.name),
+      }
     }
     catch (error) {
       throw new Error(`Could not resolve ${String(route.name)}. Params: ${JSON.stringify(route.params)}. Error: ${error.message}`)
