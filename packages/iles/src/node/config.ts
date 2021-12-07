@@ -27,8 +27,8 @@ const debug = creatDebugger('iles:config')
 export type { AppConfig }
 
 const IlesComponentResolver: ComponentResolver = (name) => {
-  if (name === 'Island') return { importName: 'Island', path: 'iles' }
-  if (name === 'Head') return { importName: 'Head', path: '@vueuse/head' }
+  if (name === 'Island') return { importName: 'default', path: 'iles/components/Island.vue' }
+  if (name === 'Head') return { importName: 'Head', path: 'iles/components/Head' }
 }
 
 export async function resolveConfig (root?: string, env?: ConfigEnv): Promise<AppConfig> {

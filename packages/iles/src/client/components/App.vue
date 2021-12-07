@@ -31,9 +31,9 @@ export default defineComponent({
       })
     }
 
-    const DebugPanel = shallowRef<null | typeof import('./DebugPanel.vue').default>(null)
+    const DebugPanel = shallowRef<null | typeof import('components/DebugPanel.vue').default>(null)
     if (import.meta.env.DEV && appConfig.debug)
-      import('./DebugPanel.vue').then(m => DebugPanel.value = m.default)
+      import('components/DebugPanel.vue').then(m => DebugPanel.value = m.default)
 
     if (import.meta.env.DEV) {
       const { useRouterLinks } = await import('api/useRouterLinks')
