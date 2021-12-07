@@ -38,7 +38,7 @@
     "@islands/frontmatter": "workspace:*",
     "@types/estree-jsx": "^0.0.1",
     "@types/hash-sum": "^1.0",
-    "tsup": "5.5.0",
+    "tsup": "5.10.3",
     "typescript": "^4.4.4",
     "unified": "^10.1",
     "vite": "2.7.0-beta.10"
