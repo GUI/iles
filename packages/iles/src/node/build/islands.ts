@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax */
 import { promises as fs } from 'fs'
 import { join, resolve, relative, dirname } from 'pathe'
 import { build as viteBuild, mergeConfig as mergeViteConfig } from 'vite'

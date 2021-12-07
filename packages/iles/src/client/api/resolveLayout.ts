@@ -1,6 +1,6 @@
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { shallowRef } from 'vue'
-import { pageFromRoute } from './composables/pageData'
+import { pageFromRoute } from 'api/usePage'
 
 export async function resolveLayout (route: RouteLocationNormalizedLoaded) {
   const page = pageFromRoute(route)

@@ -1,7 +1,6 @@
-/* eslint-disable no-restricted-syntax */
 import type { RouteLocationNormalizedLoaded, RouteParams } from 'vue-router'
 import { shallowRef } from 'vue'
-import { pageFromRoute } from './composables/pageData'
+import { pageFromRoute } from 'api/usePage'
 
 export function propsFromRoute (route: RouteLocationNormalizedLoaded) {
   if (import.meta.env.SSR)

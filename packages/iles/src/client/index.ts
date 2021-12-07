@@ -5,23 +5,17 @@
 export type { Router, RouteRecordRaw } from './shared'
 
 // Composables
-export { useAppConfig } from './app/composables/appConfig'
-export { usePage } from './app/composables/pageData'
-export { useFile } from './app/composables/file'
-// export { useAsyncData } from './app/composables/asyncData'
-// export { useFetch } from './app/composables/fetch'
-export { useMDXComponents, provideMDXComponents } from './app/composables/mdxComponents'
-export { useVueRenderer } from './app/composables/vueRenderer'
-export { plainText } from './app/renderers/plainText'
+export { useAppConfig } from 'api/useAppConfig'
+export { usePage } from 'api/usePage'
+// export { useAsyncData } from 'api/useAsyncData'
+// export { useFetch } from 'api/useFetch'
+export { useMDXComponents, provideMDXComponents } from 'api/useMdxComponents'
+export { useVueRenderer } from 'api/useVueRenderer'
 export { useRouter, useRoute } from 'vue-router'
 export { useHead } from '@vueuse/head'
-// export { $fetch } from 'ohmyfetch'
-
-// Utilities
-export { inBrowser } from './app/utils'
 
 import type { ComponentOptionsWithoutProps } from 'vue'
-import { UserApp, GetStaticPaths } from '../../types/shared'
+import type { UserApp, GetStaticPaths } from 'types'
 
 export function defineApp (app: UserApp) {
   return app
@@ -30,6 +24,3 @@ export function defineApp (app: UserApp) {
 export function definePageComponent<T> (page: ComponentOptionsWithoutProps<T> & { getStaticPaths?: GetStaticPaths<T> }) {
   return page
 }
-
-// Components
-export * from './app/components'

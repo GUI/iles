@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax */
 import fs from 'fs'
 import { join, relative, resolve } from 'pathe'
 import pc from 'picocolors'

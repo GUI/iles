@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defineComponent, computed, watch, ref } from 'vue'
-import { usePage } from '../composables/pageData'
+import { usePage } from 'api/usePage'
 
 export default defineComponent({
   name: 'DebugPanel',

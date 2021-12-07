@@ -6,15 +6,15 @@ import routes from '@islands/routes'
 import config from '@islands/app-config'
 import userApp from '@islands/user-app'
 import siteRef from '@islands/user-site'
-import type { CreateAppFactory, AppContext, RouterOptions } from '../shared'
-import App from './components/App.vue'
-import { installPageData, forcePageUpdate } from './composables/pageData'
-import { installMDXComponents } from './composables/mdxComponents'
-import { installAppConfig } from './composables/appConfig'
+import type { CreateAppFactory, AppContext, RouterOptions } from 'types'
+import App from 'components/App.vue'
+import { installPageData, forcePageUpdate } from 'api/usePage'
+import { installMDXComponents } from 'api/useMDXComponents'
+import { installAppConfig } from 'api/useAppConfig'
 import { resetHydrationId } from './hydration'
-import { defaultHead } from './head'
-import { resolveLayout } from './layout'
-import { resolveProps } from './props'
+import { defaultHead } from './meta'
+import { resolveLayout } from 'api/resolveLayout'
+import { resolveProps } from 'api/resolveProps'
 
 const newApp = import.meta.env.SSR ? createSSRApp : createClientApp
 
@@ -90,7 +90,7 @@ if (!import.meta.env.SSR) {
   (async () => {
     const { app, router } = await createApp()
 
-    const devtools = await import('./composables/devtools')
+    const devtools = await import('./devtools')
     devtools.installDevtools(app as any, config)
     Object.assign(window, { __ILES_PAGE_UPDATE__: forcePageUpdate })
 

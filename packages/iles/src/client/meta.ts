@@ -1,5 +1,5 @@
 import { computed } from 'vue'
-import type { AppContext, HeadConfig } from '../shared'
+import type { AppContext, HeadConfig } from 'types'
 
 function notEmpty<T> (val: T | boolean | undefined | null): val is T {
   return Boolean(val)

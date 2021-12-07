@@ -1,7 +1,7 @@
 import type { InjectionKey } from 'vue'
 import { inject, provide } from 'vue'
 
-import type { AppContext, MDXComponents, UserApp } from '../../shared'
+import type { AppContext, MDXComponents, UserApp } from 'types'
 
 export const mdxComponentsKey: InjectionKey<MDXComponents> = Symbol('[iles-mdx-components]')
 

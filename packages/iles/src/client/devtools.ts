@@ -3,8 +3,7 @@ import { reactive, computed } from 'vue'
 import type { InspectorNodeTag, DevtoolsPluginApi } from '@vue/devtools-api'
 import { setupDevtoolsPlugin } from '@vue/devtools-api'
 import { usePage } from 'iles'
-import type { AppClientConfig, PageData } from '../../shared'
-import { getComponentName } from '../utils'
+import type { AppClientConfig, PageData } from 'types'
 
 const ISLAND_TYPE = 'Islands 🏝'
 const componentStateTypes = [ISLAND_TYPE]
@@ -192,4 +191,13 @@ function getStrategy (island: any) {
 
 function getMediaQuery (island: any) {
   if (island.strategy === 'client:media') return island['client:media']
+}
+
+function getComponentName ({ displayName, name, _componentTag, __file }: any) {
+  return displayName || name || _componentTag || nameFromFile(__file)
+}
+
+function nameFromFile (file: string) {
+  const regex = /[\\/]src(?:[\\/](?:pages|layouts))?[\\/](.*?)(?:\.vue)?$/
+  return file?.match(regex)?.[1] || file
 }

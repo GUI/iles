@@ -1,20 +1,18 @@
 <script lang="ts">
 import { defineComponent, computed, shallowRef, watch } from 'vue'
 import { Head } from '@vueuse/head'
-import { useAppConfig } from '../composables/appConfig'
-import { usePage } from '../composables/pageData'
-import { useRouterLinks } from '../composables/routerLinks'
-import { resolveLayout } from '../layout'
-import { resolveProps } from '../props'
+import { useAppConfig } from 'api/useAppConfig'
+import { usePage } from 'api/usePage'
+import { resolveLayout } from 'api/resolveLayout'
+import { resolveProps } from 'api/resolveProps'
 
 export default defineComponent({
   name: 'îles',
   components: {
     Head,
   },
-  setup () {
+  async setup () {
     const appConfig = useAppConfig()
-    useRouterLinks()
 
     const { page, route, props } = usePage()
 
@@ -36,6 +34,11 @@ export default defineComponent({
     const DebugPanel = shallowRef<null | typeof import('./DebugPanel.vue').default>(null)
     if (import.meta.env.DEV && appConfig.debug)
       import('./DebugPanel.vue').then(m => DebugPanel.value = m.default)
+
+    if (import.meta.env.DEV) {
+      const { useRouterLinks } = await import('api/useRouterLinks')
+      useRouterLinks()
+    }
 
     return {
       layout,
@@ -61,5 +64,7 @@ export default defineComponent({
       </component>
     </router-view>
   </Suspense>
-  <component :is="DebugPanel" v-if="DebugPanel"/>
+  <template v-if="DebugPanel">
+    <component :is="DebugPanel"/>
+  </template>
 </template>

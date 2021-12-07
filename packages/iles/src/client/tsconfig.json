@@ -8,7 +8,10 @@
     "lib": ["ESNext", "DOM"],
     "types": ["vite/client"],
     "paths": {
-      "iles": ["index.ts"]
+      "api/*": ["api/*"],
+      "iles": ["index.ts"],
+      "types": ["shared.ts"],
+      "components/*": ["components/*"]
     }
   },
   "include": [".", "../../types/index.d.ts"]

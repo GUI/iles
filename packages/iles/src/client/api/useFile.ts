@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 import type fs from 'fs'
-import { useAppConfig } from './appConfig'
+import { useAppConfig } from './useAppConfig'
 
 export function useFile (...args: Parameters<typeof fs['readFileSync']>) {
   if (!import.meta.env.SSR) throw new Error('useFile should only be used after checking for import.meta.env.SSR.')

@@ -1,10 +1,9 @@
 import type { App, Ref, InjectionKey } from 'vue'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
-import { computed, ref, inject } from 'vue'
+import { computed, reactive, ref, inject } from 'vue'
 import { routeLocationKey } from 'vue-router'
-import type { PageData, PageProps, PageComponent, UserSite } from '../../shared'
-import { propsFromRoute } from '../props'
-import { toReactive } from './reactivity'
+import type { PageData, PageProps, PageComponent, UserSite } from 'types'
+import { propsFromRoute } from 'api/resolveProps'
 
 export const pageDataKey: InjectionKey<PageData> = Symbol('[iles-page-data]')
 
@@ -52,4 +51,38 @@ export function installPageData (app: App, siteRef: Ref<UserSite>): PageData {
 
 export function usePage<T extends PageProps = PageProps> (app?: App): PageData<T> {
   return injectFromApp<PageData<T>>(pageDataKey, app)
+}
+
+/**
+ * Converts ref to a reactive value.
+ *
+ * @see https://vueuse.org/toReactive
+ */
+export function toReactive<T extends object> (objectRef: Ref<T>): T {
+  const proxy = new Proxy({}, {
+    get (_, p, receiver) {
+      return Reflect.get(objectRef.value, p, receiver)
+    },
+    set (_, p, value) {
+      (objectRef.value as any)[p] = value
+      return true
+    },
+    deleteProperty (_, p) {
+      return Reflect.deleteProperty(objectRef.value, p)
+    },
+    has (_, p) {
+      return Reflect.has(objectRef.value, p)
+    },
+    ownKeys () {
+      return Object.keys(objectRef.value)
+    },
+    getOwnPropertyDescriptor () {
+      return {
+        enumerable: true,
+        configurable: true,
+      }
+    },
+  })
+
+  return reactive(proxy) as T
 }

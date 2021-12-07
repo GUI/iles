@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defineComponent, computed } from 'vue'
-import { useRoute, useRouter } from 'iles'
+import { useRoute, useRouter } from 'vue-router'
 
 export default defineComponent({
   name: 'NotFound',

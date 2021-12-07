@@ -2,12 +2,12 @@
 import { defineAsyncComponent, defineComponent, h, createCommentVNode, createStaticVNode } from 'vue'
 import type { PropType, DefineComponent } from 'vue'
 import type { Framework } from '@islands/hydration'
-import { asyncMapObject, mapObject, serialize } from '../utils'
+import { useIslandsForPath } from 'api/useIslandsForPath'
+import { useRenderer } from 'api/useRenderer'
+import { useAppConfig } from 'api/useAppConfig'
+import { useVueRenderer } from 'api/useVueRenderer'
+import serialize from '@nuxt/devalue'
 import { isEager, newHydrationId, Hydrate, hydrationFns } from '../hydration'
-import { useIslandsForPath } from '../composables/islandDefinitions'
-import { useRenderer } from '../composables/renderer'
-import { useAppConfig } from '../composables/appConfig'
-import { useVueRenderer } from '../composables/vueRenderer'
 
 function inspectMediaQuery (query: string) {
   if (!query.includes('(') && query.includes(': '))
@@ -133,6 +133,20 @@ hydrate(framework, component, '${this.id}', ${serialize(props)}, ${serialize(slo
     ]
   },
 })
+
+function mapObject<I, O> (obj: Record<string, I>, fn: (i: I, key?: string) => O): Record<string, O> {
+  const result: Record<string, O> = {}
+  for (const key in obj)
+    result[key] = fn(obj[key], key)
+  return result
+}
+
+async function asyncMapObject<I, O> (obj: Record<string, I>, fn: (i: I) => Promise<O>): Promise<Record<string, O>> {
+  const result: Record<string, O> = {}
+  for (const key in obj)
+    result[key] = await fn(obj[key])
+  return result
+}
 </script>
 
 <style>
