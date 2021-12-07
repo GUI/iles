@@ -1,10 +1,26 @@
 import { promises as fs } from 'fs'
 import { resolve } from 'pathe'
-import { uniq } from './utils'
+import { escapeRegex, uniq } from './utils'
 import { parseImports } from './parse'
 
-const definitionRegex = /(?:function|const|let|var)\s+(definePageComponent|use(?:Page|Route|Head)\b)/g
-const composableUsageRegex = /\b(definePageComponent|use(?:Page|Route|Head))\s*\(/g
+const composables = [
+  '$fetch',
+  'definePageComponent',
+  'usePage',
+  'useRoute',
+  'useHead',
+  'useFetch',
+  'useAsyncData',
+]
+
+function wordBoundary (word: string) {
+  return word.startsWith('$') ? `${escapeRegex(word)}\\b` : `\\b${word}\\b`
+}
+
+const composablesCapture = `(${composables.map(wordBoundary).join('|')})`
+
+const definitionRegex = new RegExp(`(?:function|const|let|var)\\s+${composablesCapture}`, 'g')
+const composableUsageRegex = new RegExp(`${composablesCapture}\\s*\\(`, 'g')
 
 export async function autoImportComposables (code: string, id: string): Promise<string | undefined> {
   const matches = Array.from(code.matchAll(composableUsageRegex))
