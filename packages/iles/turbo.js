@@ -112,6 +112,8 @@ function replacePage (url, scrollPosition, callback) {
     })
 }
 
+export { replacePage as visit }
+
 function replaceHtml (html) {
   const { head, body } = new DOMParser().parseFromString(html, 'text/html')
 

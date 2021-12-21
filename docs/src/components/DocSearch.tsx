@@ -1,19 +1,28 @@
 import { DocSearch, DocSearchProps } from '@mussi/docsearch'
 import '~/styles/docsearch.css'
 
-const options: Partial<DocSearchProps> = import.meta.env.DEV
-  ? {
-    transformItems: (items) => {
-      return items.map((item) => {
-        const getRelativePath = (url: string) => {
-          const { pathname, hash } = new URL(url)
-          return pathname + hash
-        }
-        return Object.assign({}, item, { url: getRelativePath(item.url) })
-      })
+const options: Partial<DocSearchProps> = {
+  ...(import.meta.env.SSR ? {} : { navigator: {
+    navigate: async ({ itemUrl }: { itemUrl: string }) => {
+      const { visit } = await import('iles/turbo')
+      visit(itemUrl)
     },
-  }
-  : {}
+  } }),
+
+  ...(import.meta.env.DEV
+    ? {
+      transformItems: (items) => {
+        return items.map((item) => {
+          const getRelativePath = (url: string) => {
+            const { pathname, hash } = new URL(url)
+            return pathname + hash
+          }
+          return Object.assign({}, item, { url: getRelativePath(item.url) })
+        })
+      },
+    }
+    : {}),
+}
 
 const IlesDocSearch = (props: Partial<DocSearchProps>) =>
   <DocSearch
